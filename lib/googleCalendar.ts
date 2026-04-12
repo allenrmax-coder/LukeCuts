@@ -36,7 +36,11 @@ export async function getBusySlots(date: string): Promise<{ start: string; end: 
     },
   })
 
-  return res.data.calendars?.[CALENDAR_ID]?.busy ?? []
+  const busy = res.data.calendars?.[CALENDAR_ID]?.busy ?? []
+  return busy.filter(
+    (slot): slot is { start: string; end: string } =>
+      typeof slot.start === 'string' && typeof slot.end === 'string',
+  )
 }
 
 export interface BookingDetails {
