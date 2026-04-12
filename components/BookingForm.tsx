@@ -271,7 +271,7 @@ export default function BookingForm() {
                                   ? 'text-gray-500 border border-dashed border-white/20 hover:border-white/35 hover:text-gray-400'
                                   : past
                                     ? 'text-gray-800 cursor-not-allowed'
-                                    : 'text-gray-800 cursor-not-allowed opacity-0 pointer-events-none',
+                                    : 'text-gray-800 cursor-not-allowed opacity-30',
                         ].join(' ')}
                       >
                         {format(day, 'd')}
