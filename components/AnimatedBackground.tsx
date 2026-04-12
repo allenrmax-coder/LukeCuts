@@ -35,6 +35,89 @@ function initHair(W: number, H: number): HairStrand {
   }
 }
 
+// ctx is passed as an explicit CanvasRenderingContext2D parameter — never null,
+// never subject to TypeScript closure-widening or hoisting concerns.
+function drawScissor(ctx: CanvasRenderingContext2D, s: ScissorObj): void {
+  ctx.save()
+  ctx.globalAlpha = s.opacity
+  ctx.translate(s.x, s.y)
+  ctx.rotate(s.angle)
+  const sz = s.size
+  const oa = s.openAngle * 0.45
+
+  const makeGrad = (): CanvasGradient => {
+    const g = ctx.createLinearGradient(-sz * 0.1, 0, sz, 0)
+    g.addColorStop(0, '#1a1a1a')
+    g.addColorStop(0.35, '#555')
+    g.addColorStop(0.7, '#bbb')
+    g.addColorStop(1, '#333')
+    return g
+  }
+
+  ctx.shadowColor = 'rgba(255,255,255,0.15)'
+  ctx.shadowBlur = 12
+
+  // Top blade
+  ctx.save()
+  ctx.rotate(oa)
+  ctx.beginPath()
+  ctx.moveTo(0, 0)
+  ctx.bezierCurveTo(sz * 0.25, -sz * 0.06, sz * 0.65, -sz * 0.13, sz * 0.95, -sz * 0.02)
+  ctx.bezierCurveTo(sz * 0.65, sz * 0.05, sz * 0.25, sz * 0.025, 0, 0)
+  ctx.fillStyle = makeGrad()
+  ctx.fill()
+  ctx.beginPath()
+  ctx.arc(-sz * 0.2, 0, sz * 0.13, 0, Math.PI * 2)
+  ctx.strokeStyle = '#555'
+  ctx.lineWidth = sz * 0.04
+  ctx.stroke()
+  ctx.restore()
+
+  // Bottom blade (mirrored)
+  ctx.save()
+  ctx.rotate(-oa)
+  ctx.scale(1, -1)
+  ctx.beginPath()
+  ctx.moveTo(0, 0)
+  ctx.bezierCurveTo(sz * 0.25, -sz * 0.06, sz * 0.65, -sz * 0.13, sz * 0.95, -sz * 0.02)
+  ctx.bezierCurveTo(sz * 0.65, sz * 0.05, sz * 0.25, sz * 0.025, 0, 0)
+  ctx.fillStyle = makeGrad()
+  ctx.fill()
+  ctx.beginPath()
+  ctx.arc(-sz * 0.2, 0, sz * 0.13, 0, Math.PI * 2)
+  ctx.strokeStyle = '#555'
+  ctx.lineWidth = sz * 0.04
+  ctx.stroke()
+  ctx.restore()
+
+  ctx.shadowBlur = 0
+  ctx.beginPath()
+  ctx.arc(0, 0, sz * 0.075, 0, Math.PI * 2)
+  const screwG = ctx.createRadialGradient(0, -sz * 0.02, 0, 0, 0, sz * 0.075)
+  screwG.addColorStop(0, '#ccc')
+  screwG.addColorStop(1, '#555')
+  ctx.fillStyle = screwG
+  ctx.fill()
+  ctx.restore()
+}
+
+function drawHair(ctx: CanvasRenderingContext2D, h: HairStrand): void {
+  ctx.save()
+  ctx.globalAlpha = h.opacity
+  ctx.strokeStyle = '#444'
+  ctx.lineWidth = 0.8
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  ctx.moveTo(h.x + h.sway, h.y)
+  ctx.bezierCurveTo(
+    h.cp1x + h.sway * 0.4, h.y + h.length * 0.33,
+    h.cp2x + h.sway * 0.7, h.y + h.length * 0.66,
+    h.ex + h.sway, h.y + h.length,
+  )
+  ctx.stroke()
+  ctx.restore()
+}
+
 export default function AnimatedBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -42,15 +125,8 @@ export default function AnimatedBackground() {
     const canvas = canvasRef.current
     if (!canvas) return
 
-    // --- Fix: explicitly type the context to remove null from the union.
-    // canvas.getContext('2d') returns CanvasRenderingContext2D | null.
-    // After the guard we know it's non-null, but TypeScript widens the type
-    // back to include null when the variable is captured by hoisted function
-    // declarations (function foo() {} are parsed before runtime narrowing).
-    // Assigning to a new const with an explicit non-null type prevents that.
-    const rawCtx = canvas.getContext('2d')
-    if (!rawCtx) return
-    const ctx: CanvasRenderingContext2D = rawCtx
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
 
     let animId: number
     let W = window.innerWidth
@@ -58,9 +134,6 @@ export default function AnimatedBackground() {
     canvas.width = W
     canvas.height = H
 
-    // Resize: update dimensions and re-sync the canvas logical size.
-    // Note: setting canvas.width/height clears the bitmap and resets context
-    // state (transforms, styles), which is handled by re-drawing every frame.
     const onResize = () => {
       W = window.innerWidth
       H = window.innerHeight
@@ -95,93 +168,7 @@ export default function AnimatedBackground() {
       speed: 0.004 + Math.random() * 0.007,
     }))
 
-    // Use const arrow functions instead of function declarations so TypeScript's
-    // control-flow narrowing of `ctx` is preserved inside each closure.
-    const drawScissor = (s: ScissorObj): void => {
-      ctx.save()
-      ctx.globalAlpha = s.opacity
-      ctx.translate(s.x, s.y)
-      ctx.rotate(s.angle)
-      const sz = s.size
-      const oa = s.openAngle * 0.45
-
-      const makeGrad = (): CanvasGradient => {
-        const g = ctx.createLinearGradient(-sz * 0.1, 0, sz, 0)
-        g.addColorStop(0, '#1a1a1a')
-        g.addColorStop(0.35, '#555')
-        g.addColorStop(0.7, '#bbb')
-        g.addColorStop(1, '#333')
-        return g
-      }
-
-      ctx.shadowColor = 'rgba(255,255,255,0.15)'
-      ctx.shadowBlur = 12
-
-      // Top blade
-      ctx.save()
-      ctx.rotate(oa)
-      ctx.beginPath()
-      ctx.moveTo(0, 0)
-      ctx.bezierCurveTo(sz * 0.25, -sz * 0.06, sz * 0.65, -sz * 0.13, sz * 0.95, -sz * 0.02)
-      ctx.bezierCurveTo(sz * 0.65, sz * 0.05, sz * 0.25, sz * 0.025, 0, 0)
-      ctx.fillStyle = makeGrad()
-      ctx.fill()
-      ctx.beginPath()
-      ctx.arc(-sz * 0.2, 0, sz * 0.13, 0, Math.PI * 2)
-      ctx.strokeStyle = '#555'
-      ctx.lineWidth = sz * 0.04
-      ctx.stroke()
-      ctx.restore()
-
-      // Bottom blade (mirrored)
-      ctx.save()
-      ctx.rotate(-oa)
-      ctx.scale(1, -1)
-      ctx.beginPath()
-      ctx.moveTo(0, 0)
-      ctx.bezierCurveTo(sz * 0.25, -sz * 0.06, sz * 0.65, -sz * 0.13, sz * 0.95, -sz * 0.02)
-      ctx.bezierCurveTo(sz * 0.65, sz * 0.05, sz * 0.25, sz * 0.025, 0, 0)
-      ctx.fillStyle = makeGrad()
-      ctx.fill()
-      ctx.beginPath()
-      ctx.arc(-sz * 0.2, 0, sz * 0.13, 0, Math.PI * 2)
-      ctx.strokeStyle = '#555'
-      ctx.lineWidth = sz * 0.04
-      ctx.stroke()
-      ctx.restore()
-
-      ctx.shadowBlur = 0
-      ctx.beginPath()
-      ctx.arc(0, 0, sz * 0.075, 0, Math.PI * 2)
-      const screwG = ctx.createRadialGradient(0, -sz * 0.02, 0, 0, 0, sz * 0.075)
-      screwG.addColorStop(0, '#ccc')
-      screwG.addColorStop(1, '#555')
-      ctx.fillStyle = screwG
-      ctx.fill()
-      ctx.restore()
-    }
-
-    const drawHair = (h: HairStrand): void => {
-      ctx.save()
-      ctx.globalAlpha = h.opacity
-      ctx.strokeStyle = '#444'
-      ctx.lineWidth = 0.8
-      ctx.lineCap = 'round'
-      ctx.beginPath()
-      ctx.moveTo(h.x + h.sway, h.y)
-      ctx.bezierCurveTo(
-        h.cp1x + h.sway * 0.4, h.y + h.length * 0.33,
-        h.cp2x + h.sway * 0.7, h.y + h.length * 0.66,
-        h.ex + h.sway, h.y + h.length,
-      )
-      ctx.stroke()
-      ctx.restore()
-    }
-
-    // Single rAF loop — no setInterval, no double-scheduling.
-    // cancelAnimationFrame in cleanup prevents the loop from running after
-    // the component unmounts (memory leak / state-update-on-unmounted fix).
-    const draw = (): void => {
+    function draw() {
       ctx.clearRect(0, 0, W, H)
 
       for (const sp of sparkles) {
@@ -207,7 +194,7 @@ export default function AnimatedBackground() {
         h.swayAngle += h.swaySpeed
         h.sway = Math.sin(h.swayAngle) * 14
         if (h.y > H + 120) Object.assign(h, initHair(W, H))
-        drawHair(h)
+        drawHair(ctx, h)
       }
 
       for (const s of scissors) {
@@ -219,7 +206,7 @@ export default function AnimatedBackground() {
         if (s.x > W + 120) s.x = -80
         if (s.y < -120) s.y = H + 80
         if (s.y > H + 120) s.y = -80
-        drawScissor(s)
+        drawScissor(ctx, s)
       }
 
       animId = requestAnimationFrame(draw)
@@ -227,8 +214,6 @@ export default function AnimatedBackground() {
 
     draw()
 
-    // Cleanup: cancel the animation frame and remove the resize listener to
-    // prevent both a memory leak and "setState on unmounted component" errors.
     return () => {
       cancelAnimationFrame(animId)
       window.removeEventListener('resize', onResize)
