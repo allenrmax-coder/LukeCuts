@@ -35,8 +35,6 @@ function initHair(W: number, H: number): HairStrand {
   }
 }
 
-// ctx is passed as an explicit CanvasRenderingContext2D parameter — never null,
-// never subject to TypeScript closure-widening or hoisting concerns.
 function drawScissor(ctx: CanvasRenderingContext2D, s: ScissorObj): void {
   ctx.save()
   ctx.globalAlpha = s.opacity
@@ -57,7 +55,6 @@ function drawScissor(ctx: CanvasRenderingContext2D, s: ScissorObj): void {
   ctx.shadowColor = 'rgba(255,255,255,0.15)'
   ctx.shadowBlur = 12
 
-  // Top blade
   ctx.save()
   ctx.rotate(oa)
   ctx.beginPath()
@@ -73,7 +70,6 @@ function drawScissor(ctx: CanvasRenderingContext2D, s: ScissorObj): void {
   ctx.stroke()
   ctx.restore()
 
-  // Bottom blade (mirrored)
   ctx.save()
   ctx.rotate(-oa)
   ctx.scale(1, -1)
@@ -116,6 +112,31 @@ function drawHair(ctx: CanvasRenderingContext2D, h: HairStrand): void {
   )
   ctx.stroke()
   ctx.restore()
+}
+
+function drawSparkles(
+  ctx: CanvasRenderingContext2D,
+  sparkles: Sparkle[],
+  W: number,
+  H: number,
+): void {
+  for (const sp of sparkles) {
+    sp.opacity += sp.speed * sp.fadeDir
+    if (sp.opacity >= 1) { sp.opacity = 1; sp.fadeDir = -1 }
+    if (sp.opacity <= 0) {
+      sp.opacity = 0; sp.fadeDir = 1
+      sp.x = Math.random() * W; sp.y = Math.random() * H
+    }
+    ctx.save()
+    ctx.globalAlpha = sp.opacity * 0.35
+    ctx.fillStyle = '#fff'
+    ctx.shadowColor = '#fff'
+    ctx.shadowBlur = 6
+    ctx.beginPath()
+    ctx.arc(sp.x, sp.y, sp.size, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
 }
 
 export default function AnimatedBackground() {
@@ -168,33 +189,19 @@ export default function AnimatedBackground() {
       speed: 0.004 + Math.random() * 0.007,
     }))
 
-    function draw() {
-      ctx.clearRect(0, 0, W, H)
+    // draw receives ctx as a parameter so it never closes over a possibly-null value.
+    // The recursive rAF call wraps it in an arrow so the signature stays consistent.
+    function draw(c: CanvasRenderingContext2D): void {
+      c.clearRect(0, 0, W, H)
 
-      for (const sp of sparkles) {
-        sp.opacity += sp.speed * sp.fadeDir
-        if (sp.opacity >= 1) { sp.opacity = 1; sp.fadeDir = -1 }
-        if (sp.opacity <= 0) {
-          sp.opacity = 0; sp.fadeDir = 1
-          sp.x = Math.random() * W; sp.y = Math.random() * H
-        }
-        ctx.save()
-        ctx.globalAlpha = sp.opacity * 0.35
-        ctx.fillStyle = '#fff'
-        ctx.shadowColor = '#fff'
-        ctx.shadowBlur = 6
-        ctx.beginPath()
-        ctx.arc(sp.x, sp.y, sp.size, 0, Math.PI * 2)
-        ctx.fill()
-        ctx.restore()
-      }
+      drawSparkles(c, sparkles, W, H)
 
       for (const h of hairs) {
         h.y += h.vy
         h.swayAngle += h.swaySpeed
         h.sway = Math.sin(h.swayAngle) * 14
         if (h.y > H + 120) Object.assign(h, initHair(W, H))
-        drawHair(ctx, h)
+        drawHair(c, h)
       }
 
       for (const s of scissors) {
@@ -206,13 +213,13 @@ export default function AnimatedBackground() {
         if (s.x > W + 120) s.x = -80
         if (s.y < -120) s.y = H + 80
         if (s.y > H + 120) s.y = -80
-        drawScissor(ctx, s)
+        drawScissor(c, s)
       }
 
-      animId = requestAnimationFrame(draw)
+      animId = requestAnimationFrame(() => draw(c))
     }
 
-    draw()
+    draw(ctx)
 
     return () => {
       cancelAnimationFrame(animId)
