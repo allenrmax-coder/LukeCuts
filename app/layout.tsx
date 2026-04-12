@@ -11,7 +11,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'Luke Cuts PSU | Mobile Barber at Penn State',
   description:
-    'Penn State\'s go-to mobile barber. Fresh fades, tapers, and all hair types delivered to your dorm or apartment. Book online — no commute needed.',
+    'Penn State\'s go-to mobile barber. Fresh fades, tapers, and all hair types. Come to me in State College or I can come to you. Book online.',
   keywords: ['barber', 'Penn State', 'PSU', 'mobile barber', 'haircut', 'State College', 'fade', 'taper'],
   openGraph: {
     title: 'Luke Cuts PSU | Mobile Barber at Penn State',

@@ -1,8 +1,14 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Check, Loader2, Calendar, Clock, User, Mail, Phone, Scissors, AlertCircle } from 'lucide-react'
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isBefore, startOfDay, getDay } from 'date-fns'
+import {
+  ChevronLeft, ChevronRight, Check, Loader2,
+  Calendar, Clock, User, Mail, Phone, Scissors, AlertCircle,
+} from 'lucide-react'
+import {
+  format, addMonths, subMonths, startOfMonth, endOfMonth,
+  eachDayOfInterval, isSameDay, isBefore, startOfDay, getDay, addDays,
+} from 'date-fns'
 
 const PRICING = [
   {
@@ -18,6 +24,11 @@ const PRICING = [
     description: 'Fades, tapers, line ups, and anything that needs the clippers. Sharp and precise.',
   },
 ]
+
+interface AvailabilitySettings {
+  allowedDays: number[]
+  advanceDays: number
+}
 
 function formatTime(time: string) {
   const [h, m] = time.split(':').map(Number)
@@ -36,8 +47,29 @@ export default function BookingForm() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', notes: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [availability, setAvailability] = useState<AvailabilitySettings>({
+    allowedDays: [2, 4, 6], // Tue/Thu/Sat default
+    advanceDays: 7,
+  })
 
   const today = startOfDay(new Date())
+  const maxDate = addDays(today, availability.advanceDays)
+
+  useEffect(() => {
+    fetch('/api/availability')
+      .then(r => r.json())
+      .then(d => {
+        if (d.settings) setAvailability(d.settings)
+      })
+      .catch(() => {})
+  }, [])
+
+  // A day is bookable if it's not past, within advance window, and on an allowed weekday
+  function isDayBookable(day: Date): boolean {
+    if (isBefore(day, today)) return false
+    if (day > maxDate) return false
+    return availability.allowedDays.includes(getDay(day))
+  }
 
   const fetchSlots = useCallback(async (date: Date) => {
     setSlotsLoading(true); setSlots([]); setSelectedTime('')
@@ -140,43 +172,94 @@ export default function BookingForm() {
             {step === 'datetime' && (
               <motion.div key="datetime" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="p-8">
                 <div className="flex items-center gap-2 mb-1">
-                  <button onClick={() => setStep('service')} className="text-gray-600 hover:text-white transition-colors"><ChevronLeft className="w-5 h-5" /></button>
+                  <button onClick={() => setStep('service')} className="text-gray-600 hover:text-white transition-colors">
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <Calendar className="w-5 h-5 text-gray-400" /> Pick a Date and Time
                   </h3>
                 </div>
-                <p className="text-gray-600 text-sm mb-6 ml-7">Service: <span className="text-gray-300">{selectedService}</span></p>
+                <p className="text-gray-600 text-sm mb-6 ml-7">
+                  Service: <span className="text-gray-300">{selectedService}</span>
+                </p>
 
+                {/* Month navigation */}
                 <div className="flex items-center justify-between mb-4">
-                  <button onClick={() => setCalMonth(m => subMonths(m, 1))} className="p-2 rounded-lg hover:bg-white/5 text-gray-500 hover:text-white transition-colors"><ChevronLeft className="w-4 h-4" /></button>
+                  <button
+                    onClick={() => setCalMonth(m => subMonths(m, 1))}
+                    className="p-2 rounded-lg hover:bg-white/5 text-gray-500 hover:text-white transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
                   <span className="text-white font-semibold">{format(calMonth, 'MMMM yyyy')}</span>
-                  <button onClick={() => setCalMonth(m => addMonths(m, 1))} className="p-2 rounded-lg hover:bg-white/5 text-gray-500 hover:text-white transition-colors"><ChevronRight className="w-4 h-4" /></button>
+                  <button
+                    onClick={() => setCalMonth(m => addMonths(m, 1))}
+                    className="p-2 rounded-lg hover:bg-white/5 text-gray-500 hover:text-white transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
 
+                {/* Day headers */}
                 <div className="grid grid-cols-7 mb-1">
                   {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d => (
-                    <div key={d} className="text-center text-xs text-gray-700 py-1">{d}</div>
+                    <div key={d} className="text-center text-xs text-gray-700 py-1 font-medium">{d}</div>
                   ))}
                 </div>
 
-                <div className="grid grid-cols-7 gap-1 mb-6">
+                {/* Calendar grid */}
+                <div className="grid grid-cols-7 gap-1 mb-5">
                   {Array.from({ length: startPad }).map((_, i) => <div key={`pad-${i}`} />)}
                   {days.map(day => {
                     const past = isBefore(day, today)
+                    const bookable = isDayBookable(day)
                     const selected = selectedDate ? isSameDay(day, selectedDate) : false
+                    const isToday = isSameDay(day, today)
+
                     return (
-                      <button key={day.toISOString()} disabled={past} onClick={() => setSelectedDate(day)}
-                        className={`aspect-square rounded-lg text-sm font-medium transition-all ${
-                          selected ? 'bg-white text-black' :
-                          past ? 'text-gray-800 cursor-not-allowed' :
-                          'text-gray-400 hover:bg-white/10 hover:text-white'
-                        }`}>
+                      <button
+                        key={day.toISOString()}
+                        disabled={!bookable}
+                        onClick={() => setSelectedDate(day)}
+                        className={`
+                          relative aspect-square rounded-lg text-sm font-medium transition-all duration-150
+                          ${selected
+                            ? 'bg-white text-black ring-2 ring-white ring-offset-1 ring-offset-bg-card'
+                            : bookable
+                              ? 'bg-white/10 text-white border border-white/20 hover:bg-white/20 hover:border-white/40 hover:scale-105'
+                              : past
+                                ? 'text-gray-800 cursor-not-allowed'
+                                : 'text-gray-700 cursor-not-allowed opacity-30'
+                          }
+                        `}
+                      >
                         {format(day, 'd')}
+                        {/* Dot under today's date */}
+                        {isToday && !selected && (
+                          <span className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${bookable ? 'bg-white' : 'bg-gray-700'}`} />
+                        )}
                       </button>
                     )
                   })}
                 </div>
 
+                {/* Legend */}
+                <div className="flex items-center gap-4 mb-5 text-xs text-gray-600">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded bg-white/10 border border-white/20 inline-block" />
+                    Available
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded bg-white inline-block" />
+                    Selected
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded bg-transparent border border-white/10 inline-block opacity-30" />
+                    Unavailable
+                  </span>
+                </div>
+
+                {/* Time slots */}
                 {selectedDate && (
                   <div>
                     <h4 className="text-sm font-semibold text-gray-500 mb-3 flex items-center gap-2">
@@ -184,7 +267,9 @@ export default function BookingForm() {
                       Open times for {format(selectedDate, 'MMMM d')}
                     </h4>
                     {slotsLoading ? (
-                      <div className="flex items-center gap-2 text-gray-600 text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Loading...</div>
+                      <div className="flex items-center gap-2 text-gray-600 text-sm">
+                        <Loader2 className="w-4 h-4 animate-spin" /> Loading...
+                      </div>
                     ) : slots.length === 0 ? (
                       <p className="text-gray-600 text-sm">No open slots on this day. Try another date.</p>
                     ) : (
@@ -194,7 +279,7 @@ export default function BookingForm() {
                             className={`py-2 rounded-lg text-sm font-medium transition-all border ${
                               selectedTime === slot
                                 ? 'bg-white border-white text-black'
-                                : 'bg-bg border-bg-border text-gray-500 hover:border-white/30 hover:text-white'
+                                : 'bg-bg border-bg-border text-gray-400 hover:border-white/30 hover:text-white'
                             }`}>
                             {formatTime(slot)}
                           </button>
@@ -214,7 +299,9 @@ export default function BookingForm() {
             {step === 'details' && (
               <motion.div key="details" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="p-8">
                 <div className="flex items-center gap-2 mb-1">
-                  <button onClick={() => setStep('datetime')} className="text-gray-600 hover:text-white transition-colors"><ChevronLeft className="w-5 h-5" /></button>
+                  <button onClick={() => setStep('datetime')} className="text-gray-600 hover:text-white transition-colors">
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <User className="w-5 h-5 text-gray-400" /> Your Info
                   </h3>

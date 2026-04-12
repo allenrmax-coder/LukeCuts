@@ -12,33 +12,44 @@ export interface Photo {
   uploadedAt: string
 }
 
-export function getPhotos(): Photo[] {
-  try {
-    return JSON.parse(readFileSync(DATA_FILE, 'utf-8'))
-  } catch {
-    return []
-  }
+function read(): Photo[] {
+  try { return JSON.parse(readFileSync(DATA_FILE, 'utf-8')) } catch { return [] }
 }
 
-export function savePhoto(photo: Photo): void {
-  const photos = getPhotos()
-  photos.unshift(photo) // newest first
+function write(photos: Photo[]) {
+  mkdirSync(join(process.cwd(), 'data'), { recursive: true })
   writeFileSync(DATA_FILE, JSON.stringify(photos, null, 2))
 }
 
+export function getPhotos(): Photo[] {
+  return read()
+}
+
+export function getPhotoById(id: string): Photo | undefined {
+  return read().find(p => p.id === id)
+}
+
+export function savePhoto(photo: Photo): void {
+  const photos = read()
+  photos.unshift(photo)
+  write(photos)
+}
+
+export function updatePhoto(id: string, patch: Partial<Pick<Photo, 'alt' | 'filename' | 'url'>>): boolean {
+  const photos = read()
+  const idx = photos.findIndex(p => p.id === id)
+  if (idx === -1) return false
+  photos[idx] = { ...photos[idx], ...patch }
+  write(photos)
+  return true
+}
+
 export function deletePhoto(id: string): boolean {
-  const photos = getPhotos()
+  const photos = read()
   const photo = photos.find(p => p.id === id)
   if (!photo) return false
-
-  try {
-    unlinkSync(join(UPLOAD_DIR, photo.filename))
-  } catch {
-    // File may already be gone
-  }
-
-  const updated = photos.filter(p => p.id !== id)
-  writeFileSync(DATA_FILE, JSON.stringify(updated, null, 2))
+  try { unlinkSync(join(UPLOAD_DIR, photo.filename)) } catch { /* already gone */ }
+  write(photos.filter(p => p.id !== id))
   return true
 }
 

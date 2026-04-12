@@ -1,19 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getBusySlots } from '@/lib/googleCalendar'
-
-// Available time slots (9am–8pm, every 45 min)
-function generateSlots(date: string) {
-  const slots: string[] = []
-  const start = 9 * 60   // 9:00 AM in minutes
-  const end = 20 * 60    // 8:00 PM in minutes
-  const step = 45
-  for (let m = start; m + step <= end; m += step) {
-    const h = Math.floor(m / 60)
-    const min = m % 60
-    slots.push(`${h.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`)
-  }
-  return slots
-}
+import { isSlotBlocked } from '@/lib/blockedSlots'
+import {
+  getAvailability,
+  generateSlots,
+  isAllowedDay,
+  isWithinAdvanceWindow,
+} from '@/lib/availability'
 
 function slotToMs(date: string, time: string) {
   return new Date(`${date}T${time}:00`).getTime()
@@ -25,26 +18,33 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid date' }, { status: 400 })
   }
 
-  // Block bookings in the past
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  if (new Date(date) < today) {
+  // Must be an allowed day of the week and within advance window
+  if (!isAllowedDay(date) || !isWithinAdvanceWindow(date)) {
     return NextResponse.json({ slots: [] })
   }
 
-  // If Google Calendar is not configured, return all slots
+  const settings = getAvailability()
+  const allSlots = generateSlots(settings)
+
+  // Remove manually blocked slots
+  const unblocked = allSlots.filter(slot => !isSlotBlocked(date, slot))
+
+  // Also remove slots less than 30 min from now (for today)
+  const now = Date.now()
+  const futureOnly = unblocked.filter(slot => slotToMs(date, slot) > now + 30 * 60 * 1000)
+
+  // If Google Calendar is not configured, return these slots
   if (!process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
-    return NextResponse.json({ slots: generateSlots(date) })
+    return NextResponse.json({ slots: futureOnly })
   }
 
   try {
     const busy = await getBusySlots(date)
-    const allSlots = generateSlots(date)
+    const slotMs = settings.slotDuration * 60 * 1000
 
-    const available = allSlots.filter(slot => {
+    const available = futureOnly.filter(slot => {
       const slotStart = slotToMs(date, slot)
-      const slotEnd = slotStart + 45 * 60 * 1000
-      // Block if overlaps any busy period
+      const slotEnd = slotStart + slotMs
       return !busy.some(b => {
         const bStart = new Date(b.start).getTime()
         const bEnd = new Date(b.end).getTime()
@@ -52,14 +52,9 @@ export async function GET(req: NextRequest) {
       })
     })
 
-    // Also block slots in the past for today
-    const now = Date.now()
-    const filtered = available.filter(slot => slotToMs(date, slot) > now + 30 * 60 * 1000)
-
-    return NextResponse.json({ slots: filtered })
+    return NextResponse.json({ slots: available })
   } catch (err) {
     console.error('Slot fetch error:', err)
-    // Fallback: return all slots if calendar fails
-    return NextResponse.json({ slots: generateSlots(date) })
+    return NextResponse.json({ slots: futureOnly })
   }
 }

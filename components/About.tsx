@@ -1,6 +1,8 @@
 'use client'
 import { motion } from 'framer-motion'
-import { Scissors, MapPin, Clock, Star, Check } from 'lucide-react'
+import { MapPin, Clock, Scissors, Check } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import MediaDisplay, { MediaMode } from './MediaDisplay'
 
 const haircutStyles = [
   'Skin Fades', 'Taper Fades', 'Blowouts', 'Buzz Cuts',
@@ -17,7 +19,28 @@ const fadeUp = {
   }),
 }
 
+interface AboutContent {
+  mode: MediaMode
+  videoUrl: string
+  photoUrl: string
+}
+
 export default function About() {
+  const [media, setMedia] = useState<AboutContent>({ mode: 'none', videoUrl: '', photoUrl: '' })
+
+  useEffect(() => {
+    fetch('/api/about-content')
+      .then(r => r.json())
+      .then(d => {
+        if (d.content) setMedia({
+          mode: d.content.mode ?? 'none',
+          videoUrl: d.content.videoUrl ?? '',
+          photoUrl: d.content.photoUrl ?? '',
+        })
+      })
+      .catch(() => {})
+  }, [])
+
   return (
     <section id="about" className="relative z-10 py-24 px-5">
       <div className="max-w-6xl mx-auto">
@@ -33,29 +56,12 @@ export default function About() {
 
           <motion.div initial="hidden" whileInView="show" viewport={{ once: true }}
             custom={1} variants={fadeUp} className="relative">
-            <div className="relative rounded-3xl overflow-hidden bg-bg-card border border-bg-border aspect-[4/5] flex flex-col items-center justify-center group">
-              <Scissors className="absolute top-4 right-4 w-5 h-5 text-white/10" />
-              <Scissors className="absolute bottom-4 left-4 w-5 h-5 text-white/10 rotate-180" />
-              <div className="flex flex-col items-center gap-4 text-center px-8">
-                <div className="w-20 h-20 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center">
-                  <span className="text-3xl">📸</span>
-                </div>
-                <p className="text-gray-600 text-sm">Photo coming soon</p>
-              </div>
-              <div className="absolute inset-0 rounded-3xl ring-1 ring-white/5 group-hover:ring-white/10 transition-all duration-300" />
-            </div>
-
-            <motion.div
-              animate={{ y: [0, -8, 0] }}
-              transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
-              className="absolute -bottom-4 -right-4 bg-white rounded-2xl p-4 shadow-2xl"
-            >
-              <div className="flex items-center gap-2">
-                <Star className="w-4 h-4 text-black fill-black" />
-                <span className="text-black font-bold text-sm">5.0 Rating</span>
-              </div>
-              <p className="text-gray-600 text-xs mt-0.5">100+ happy clients</p>
-            </motion.div>
+            <MediaDisplay
+              mode={media.mode}
+              videoUrl={media.videoUrl}
+              photoUrl={media.photoUrl}
+              showBadge
+            />
           </motion.div>
 
           <motion.div initial="hidden" whileInView="show" viewport={{ once: true }}
@@ -135,30 +141,56 @@ export default function About() {
   )
 }
 
+interface Photo { id: string; url: string; alt: string }
+
 function GallerySection() {
+  const [photos, setPhotos] = useState<Photo[]>([])
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/photos')
+      .then(r => r.json())
+      .then(d => { setPhotos(d.photos ?? []); setLoaded(true) })
+      .catch(() => setLoaded(true))
+  }, [])
+
+  const showPlaceholders = loaded && photos.length === 0
+
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
       <div className="text-center mb-8">
         <h3 className="text-2xl font-black text-white">Work Gallery</h3>
         <p className="text-gray-600 text-sm mt-1">
-          Photos coming soon. Follow{' '}
-          <a href="https://www.instagram.com/lukecutspsu" target="_blank" rel="noopener noreferrer"
-            className="text-gray-400 hover:text-white transition-colors">@luke.cuts.psu</a>{' '}
-          for the latest.
+          {showPlaceholders ? (
+            <>Photos coming soon. Follow{' '}
+              <a href="https://www.instagram.com/lukecutspsu" target="_blank" rel="noopener noreferrer"
+                className="text-gray-400 hover:text-white transition-colors">@luke.cuts.psu</a>{' '}
+              for the latest.</>
+          ) : (
+            <>Fresh cuts. Real results.</>
+          )}
         </p>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4" id="gallery-grid">
-        {Array.from({ length: 6 }, (_, i) => (
-          <motion.div key={i}
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: i * 0.08 }}
-            className="aspect-square rounded-2xl bg-bg-card border border-dashed border-bg-border flex flex-col items-center justify-center gap-2 group hover:border-white/15 transition-colors">
-            <span className="text-2xl opacity-20 group-hover:opacity-30 transition-opacity">📷</span>
-            <span className="text-gray-700 text-xs">Photo {i + 1}</span>
-          </motion.div>
-        ))}
+        {showPlaceholders
+          ? Array.from({ length: 6 }, (_, i) => (
+              <motion.div key={i}
+                initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }} transition={{ delay: i * 0.08 }}
+                className="aspect-square rounded-2xl bg-bg-card border border-dashed border-bg-border flex flex-col items-center justify-center gap-2 group hover:border-white/15 transition-colors">
+                <span className="text-2xl opacity-20 group-hover:opacity-30 transition-opacity">📷</span>
+                <span className="text-gray-700 text-xs">Photo {i + 1}</span>
+              </motion.div>
+            ))
+          : photos.map((photo, i) => (
+              <motion.div key={photo.id}
+                initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }} transition={{ delay: i * 0.08 }}
+                className="aspect-square rounded-2xl overflow-hidden bg-bg-card border border-bg-border">
+                <img src={photo.url} alt={photo.alt || 'Gallery photo'} className="w-full h-full object-cover" />
+              </motion.div>
+            ))
+        }
       </div>
     </motion.div>
   )

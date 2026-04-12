@@ -41,8 +41,16 @@ export default function AnimatedBackground() {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+
+    // --- Fix: explicitly type the context to remove null from the union.
+    // canvas.getContext('2d') returns CanvasRenderingContext2D | null.
+    // After the guard we know it's non-null, but TypeScript widens the type
+    // back to include null when the variable is captured by hoisted function
+    // declarations (function foo() {} are parsed before runtime narrowing).
+    // Assigning to a new const with an explicit non-null type prevents that.
+    const rawCtx = canvas.getContext('2d')
+    if (!rawCtx) return
+    const ctx: CanvasRenderingContext2D = rawCtx
 
     let animId: number
     let W = window.innerWidth
@@ -50,9 +58,14 @@ export default function AnimatedBackground() {
     canvas.width = W
     canvas.height = H
 
+    // Resize: update dimensions and re-sync the canvas logical size.
+    // Note: setting canvas.width/height clears the bitmap and resets context
+    // state (transforms, styles), which is handled by re-drawing every frame.
     const onResize = () => {
-      W = window.innerWidth; H = window.innerHeight
-      canvas.width = W; canvas.height = H
+      W = window.innerWidth
+      H = window.innerHeight
+      canvas.width = W
+      canvas.height = H
     }
     window.addEventListener('resize', onResize)
 
@@ -69,7 +82,9 @@ export default function AnimatedBackground() {
     }))
 
     const hairs: HairStrand[] = Array.from({ length: 30 }, () => {
-      const h = initHair(W, H); h.y = Math.random() * H; return h
+      const h = initHair(W, H)
+      h.y = Math.random() * H
+      return h
     })
 
     const sparkles: Sparkle[] = Array.from({ length: 14 }, () => ({
@@ -80,7 +95,9 @@ export default function AnimatedBackground() {
       speed: 0.004 + Math.random() * 0.007,
     }))
 
-    function drawScissor(s: ScissorObj) {
+    // Use const arrow functions instead of function declarations so TypeScript's
+    // control-flow narrowing of `ctx` is preserved inside each closure.
+    const drawScissor = (s: ScissorObj): void => {
       ctx.save()
       ctx.globalAlpha = s.opacity
       ctx.translate(s.x, s.y)
@@ -88,7 +105,7 @@ export default function AnimatedBackground() {
       const sz = s.size
       const oa = s.openAngle * 0.45
 
-      const makeGrad = () => {
+      const makeGrad = (): CanvasGradient => {
         const g = ctx.createLinearGradient(-sz * 0.1, 0, sz, 0)
         g.addColorStop(0, '#1a1a1a')
         g.addColorStop(0.35, '#555')
@@ -144,7 +161,7 @@ export default function AnimatedBackground() {
       ctx.restore()
     }
 
-    function drawHair(h: HairStrand) {
+    const drawHair = (h: HairStrand): void => {
       ctx.save()
       ctx.globalAlpha = h.opacity
       ctx.strokeStyle = '#444'
@@ -161,7 +178,10 @@ export default function AnimatedBackground() {
       ctx.restore()
     }
 
-    function draw() {
+    // Single rAF loop — no setInterval, no double-scheduling.
+    // cancelAnimationFrame in cleanup prevents the loop from running after
+    // the component unmounts (memory leak / state-update-on-unmounted fix).
+    const draw = (): void => {
       ctx.clearRect(0, 0, W, H)
 
       for (const sp of sparkles) {
@@ -206,7 +226,13 @@ export default function AnimatedBackground() {
     }
 
     draw()
-    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', onResize) }
+
+    // Cleanup: cancel the animation frame and remove the resize listener to
+    // prevent both a memory leak and "setState on unmounted component" errors.
+    return () => {
+      cancelAnimationFrame(animId)
+      window.removeEventListener('resize', onResize)
+    }
   }, [])
 
   return (

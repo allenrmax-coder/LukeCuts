@@ -2,20 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdminToken, COOKIE_NAME } from '@/lib/adminAuth'
 import { setSlotBlocked, setDayBlocked, getBlockedSlots } from '@/lib/blockedSlots'
 import { getBusySlots } from '@/lib/googleCalendar'
+import { getAvailability, generateSlots } from '@/lib/availability'
 
 function requireAdmin(req: NextRequest) {
   return verifyAdminToken(req.cookies.get(COOKIE_NAME)?.value)
-}
-
-// Generate all slots for a day (same as available-slots route)
-function allSlots() {
-  const slots: string[] = []
-  for (let m = 9 * 60; m + 45 <= 20 * 60; m += 45) {
-    const h = Math.floor(m / 60)
-    const min = m % 60
-    slots.push(`${h.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`)
-  }
-  return slots
 }
 
 // GET /api/admin/slots?date=YYYY-MM-DD
@@ -26,6 +16,9 @@ export async function GET(req: NextRequest) {
   const date = req.nextUrl.searchParams.get('date')
   if (!date) return NextResponse.json({ error: 'Missing date' }, { status: 400 })
 
+  const settings = getAvailability()
+  const allSlotTimes = generateSlots(settings)
+
   const blocked = getBlockedSlots()
   const dayBlocked = blocked[date]
 
@@ -34,14 +27,16 @@ export async function GET(req: NextRequest) {
     try { busyRanges = await getBusySlots(date) } catch { /* ignore */ }
   }
 
-  const slots = allSlots().map(time => {
-    const slotMs = new Date(`${date}T${time}:00`).getTime()
-    const slotEndMs = slotMs + 45 * 60 * 1000
+  const slotMs = settings.slotDuration * 60 * 1000
+
+  const slots = allSlotTimes.map(time => {
+    const slotStart = new Date(`${date}T${time}:00`).getTime()
+    const slotEnd = slotStart + slotMs
 
     const isBooked = busyRanges.some(b => {
       const bStart = new Date(b.start).getTime()
       const bEnd = new Date(b.end).getTime()
-      return slotMs < bEnd && slotEndMs > bStart
+      return slotStart < bEnd && slotEnd > bStart
     })
 
     const isManuallyBlocked =
