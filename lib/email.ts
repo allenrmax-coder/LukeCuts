@@ -1,6 +1,17 @@
 import nodemailer from 'nodemailer'
 import type { BookingDetails } from './googleCalendar'
 
+// Escape user-supplied strings before embedding in HTML email bodies.
+// Prevents XSS in email clients that render raw HTML.
+function h(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 function getTransporter() {
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST ?? 'smtp.gmail.com',
@@ -48,11 +59,11 @@ export async function sendClientConfirmation(booking: BookingDetails, calLink: s
           <div style="background:#101a13;border:1px solid #1a2e21;border-radius:16px;padding:28px;margin-bottom:24px;">
             <h2 style="color:#fff;font-size:20px;margin:0 0 20px;">Booking Details</h2>
             <table style="width:100%;border-collapse:collapse;">
-              <tr><td style="color:#8aab97;padding:6px 0;width:100px;">Name</td><td style="color:#fff;font-weight:600;">${booking.name}</td></tr>
-              <tr><td style="color:#8aab97;padding:6px 0;">Service</td><td style="color:#5a9271;font-weight:600;">${booking.service}</td></tr>
+              <tr><td style="color:#8aab97;padding:6px 0;width:100px;">Name</td><td style="color:#fff;font-weight:600;">${h(booking.name)}</td></tr>
+              <tr><td style="color:#8aab97;padding:6px 0;">Service</td><td style="color:#5a9271;font-weight:600;">${h(booking.service)}</td></tr>
               <tr><td style="color:#8aab97;padding:6px 0;">Date</td><td style="color:#fff;font-weight:600;">${formatDate(booking.date)}</td></tr>
               <tr><td style="color:#8aab97;padding:6px 0;">Time</td><td style="color:#fff;font-weight:600;">${formatTime(booking.time)}</td></tr>
-              ${booking.notes ? `<tr><td style="color:#8aab97;padding:6px 0;">Notes</td><td style="color:#fff;">${booking.notes}</td></tr>` : ''}
+              ${booking.notes ? `<tr><td style="color:#8aab97;padding:6px 0;">Notes</td><td style="color:#fff;">${h(booking.notes)}</td></tr>` : ''}
             </table>
           </div>
 
@@ -100,13 +111,13 @@ export async function sendOwnerNotification(booking: BookingDetails) {
       <body style="background:#090e0b;color:#e8f0eb;font-family:system-ui,sans-serif;padding:32px 24px;">
         <h2 style="color:#5a9271;">New Appointment Booked</h2>
         <table style="border-collapse:collapse;">
-          <tr><td style="color:#8aab97;padding:5px 12px 5px 0;">Name</td><td style="color:#fff;font-weight:600;">${booking.name}</td></tr>
-          <tr><td style="color:#8aab97;padding:5px 12px 5px 0;">Phone</td><td><a href="tel:${booking.phone}" style="color:#5a9271;">${booking.phone}</a></td></tr>
-          <tr><td style="color:#8aab97;padding:5px 12px 5px 0;">Email</td><td><a href="mailto:${booking.email}" style="color:#5a9271;">${booking.email}</a></td></tr>
-          <tr><td style="color:#8aab97;padding:5px 12px 5px 0;">Service</td><td style="color:#fff;">${booking.service}</td></tr>
+          <tr><td style="color:#8aab97;padding:5px 12px 5px 0;">Name</td><td style="color:#fff;font-weight:600;">${h(booking.name)}</td></tr>
+          <tr><td style="color:#8aab97;padding:5px 12px 5px 0;">Phone</td><td><a href="tel:${h(booking.phone)}" style="color:#5a9271;">${h(booking.phone)}</a></td></tr>
+          <tr><td style="color:#8aab97;padding:5px 12px 5px 0;">Email</td><td><a href="mailto:${h(booking.email)}" style="color:#5a9271;">${h(booking.email)}</a></td></tr>
+          <tr><td style="color:#8aab97;padding:5px 12px 5px 0;">Service</td><td style="color:#fff;">${h(booking.service)}</td></tr>
           <tr><td style="color:#8aab97;padding:5px 12px 5px 0;">Date</td><td style="color:#fff;font-weight:600;">${formatDate(booking.date)}</td></tr>
           <tr><td style="color:#8aab97;padding:5px 12px 5px 0;">Time</td><td style="color:#fff;font-weight:600;">${formatTime(booking.time)}</td></tr>
-          ${booking.notes ? `<tr><td style="color:#8aab97;padding:5px 12px 5px 0;">Notes</td><td style="color:#fff;">${booking.notes}</td></tr>` : ''}
+          ${booking.notes ? `<tr><td style="color:#8aab97;padding:5px 12px 5px 0;">Notes</td><td style="color:#fff;">${h(booking.notes)}</td></tr>` : ''}
         </table>
       </body>
       </html>

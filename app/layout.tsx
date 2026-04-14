@@ -13,6 +13,11 @@ export const metadata: Metadata = {
   description:
     'Penn State\'s go-to mobile barber. Fresh fades, tapers, and all hair types. Come to me in State College or I can come to you. Book online.',
   keywords: ['barber', 'Penn State', 'PSU', 'mobile barber', 'haircut', 'State College', 'fade', 'taper'],
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
   openGraph: {
     title: 'Luke Cuts PSU | Mobile Barber at Penn State',
     description: 'Fresh cuts delivered to your door. Book your appointment online.',

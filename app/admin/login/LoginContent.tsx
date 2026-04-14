@@ -6,7 +6,10 @@ import { Scissors } from 'lucide-react'
 export default function LoginContent() {
   const router = useRouter()
   const params = useSearchParams()
-  const from = params.get('from') ?? '/admin'
+  // Validate the redirect target is a relative path to prevent open-redirect attacks.
+  // e.g. ?from=https://evil.com must not cause a redirect off-site.
+  const rawFrom = params.get('from') ?? ''
+  const from = rawFrom.startsWith('/') && !rawFrom.startsWith('//') ? rawFrom : '/admin'
 
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
