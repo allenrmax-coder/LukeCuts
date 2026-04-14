@@ -19,7 +19,10 @@ export async function getCalendarClient() {
   return google.calendar({ version: 'v3', auth })
 }
 
-export const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID ?? 'primary'
+export const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID ?? 'lukephilipsanderson2007@gmail.com'
+
+// Luke's personal email — always added as attendee so events appear on his calendar
+const OWNER_EMAIL = process.env.OWNER_EMAIL ?? 'lukephilipsanderson2007@gmail.com'
 
 // Fetch busy slots for a given date (returns array of { start, end } UTC strings)
 export async function getBusySlots(date: string): Promise<{ start: string; end: string }[]> {
@@ -75,7 +78,10 @@ export async function createBookingEvent(booking: BookingDetails): Promise<strin
       ].filter(Boolean).join('\n'),
       start: { dateTime: start.toISOString(), timeZone: 'America/New_York' },
       end: { dateTime: end.toISOString(), timeZone: 'America/New_York' },
-      attendees: [{ email: booking.email, displayName: booking.name }],
+      attendees: [
+        { email: OWNER_EMAIL, displayName: 'Luke', responseStatus: 'accepted' },
+        { email: booking.email, displayName: booking.name },
+      ],
       reminders: {
         useDefault: false,
         overrides: [
