@@ -36,7 +36,7 @@ export default function Hero() {
         transition={{ delay: 0.3, duration: 0.5 }}
         className="mb-6 px-4 py-1.5 rounded-full border border-white/15 bg-white/5 text-gray-400 text-sm font-medium tracking-wide"
       >
-        ✂ Penn State's Mobile Barber
+        ✂ Luke.Cuts.PSU
       </motion.div>
 
       <div className="relative w-full max-w-4xl mx-auto text-center">
@@ -48,7 +48,7 @@ export default function Hero() {
         >
           <span className="block text-white">THE PENN STATE</span>
           <span className="block text-gray-400">BARBER</span>
-          <span className="block text-white">YOU CAN TRUST</span>
+          <span className="block text-white">THAT LISTENS</span>
         </motion.h1>
 
         <motion.div
@@ -119,9 +119,9 @@ export default function Hero() {
 
             <div className="flex gap-8 mt-4">
               {[
-                { value: '100+', label: 'Happy Clients' },
+                { value: '900+', label: 'Happy Clients' },
                 { value: '45 min', label: 'Avg. Appointment' },
-                { value: '5 star', label: 'Rating' },
+                { value: '3 Years', label: 'Experience' },
               ].map((s) => (
                 <div key={s.label} className="text-center">
                   <div className="text-2xl font-black text-white">{s.value}</div>

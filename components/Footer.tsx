@@ -47,15 +47,15 @@ export default function Footer() {
             <h4 className="text-white font-semibold text-sm mb-4 tracking-wide uppercase">Contact</h4>
             <ul className="space-y-3">
               <li>
-                <a href="tel:6107196625" className="flex items-center gap-3 text-gray-600 hover:text-gray-300 transition-colors text-sm">
+                <a href="tel:6107106625" className="flex items-center gap-3 text-gray-600 hover:text-gray-300 transition-colors text-sm">
                   <Phone className="w-4 h-4 shrink-0" />
-                  (610) 719-6625
+                  (610) 710-6625
                 </a>
               </li>
               <li>
-                <a href="mailto:luke@lukecutspsu.com" className="flex items-center gap-3 text-gray-600 hover:text-gray-300 transition-colors text-sm">
+                <a href="mailto:lukephillipanderson2007@gmail.com" className="flex items-center gap-3 text-gray-600 hover:text-gray-300 transition-colors text-sm">
                   <Mail className="w-4 h-4 shrink-0" />
-                  luke@lukecutspsu.com
+                  lukephillipanderson2007@gmail.com
                 </a>
               </li>
               <li className="flex items-center gap-3 text-gray-600 text-sm">

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createBookingEvent } from '@/lib/googleCalendar'
 import { sendClientConfirmation, sendOwnerNotification } from '@/lib/email'
+import { saveBooking } from '@/lib/bookingStore'
 import { rateLimit } from '@/lib/rateLimit'
 import { isSlotBlocked } from '@/lib/blockedSlots'
 import { isAllowedDay, isWithinAdvanceWindow } from '@/lib/availability'
@@ -94,6 +95,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'That slot is no longer available.' }, { status: 422 })
 
   const booking = { name, email, phone, service, date, time, notes }
+
+  // Persist booking so the cron job can send 24h + 2h reminders
+  try { saveBooking(booking) } catch (err) { console.error('Booking store error:', err) }
+
   let calLink = ''
 
   if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {

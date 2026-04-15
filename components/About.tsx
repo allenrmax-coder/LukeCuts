@@ -5,10 +5,12 @@ import { useEffect, useState } from 'react'
 import MediaDisplay, { MediaMode } from './MediaDisplay'
 
 const haircutStyles = [
-  'Skin Fades', 'Taper Fades', 'Blowouts', 'Buzz Cuts',
-  'Line Ups / Edge Ups', 'Shape Ups', 'Classic Cuts',
-  'Textured Crops', 'Curly / Natural Hair', 'Beard Trims',
+  'Skin Fades', 'Taper Fades', 'Tapers', 'Buzz Cuts',
+  'Line Ups', 'Shape Ups', 'Crew Cuts', 'Professional Cuts',
+  'Curly Hair', 'Coarse Hair', 'Beard Trims', 'Beard Line Up',
   'Hard Parts', 'Drop Fades', 'Mid Fades', 'High Fades',
+  'Burst Fades', 'Blowout Taper', 'Textured Fringe', 'Mullets',
+  "Women's Trim", "Women's Layer Cut", "Women's Curtain Bangs",
 ]
 
 const fadeUp = {
@@ -67,17 +69,13 @@ export default function About() {
           <motion.div initial="hidden" whileInView="show" viewport={{ once: true }}
             custom={2} variants={fadeUp} className="space-y-6">
             <h3 className="text-3xl font-black text-white leading-tight">
-              Your barber,
-              <span className="text-gray-400"> on your terms.</span>
+              The Barber
+              <span className="text-gray-400"> That Listens.</span>
             </h3>
             <p className="text-gray-400 leading-relaxed">
-              Hey, I'm Luke. I cut hair for Penn State students and locals in State College. You can come to me,
-              or I can head to you for a small travel fee. Either way, I bring everything I need and give you
-              my full attention start to finish.
-            </p>
-            <p className="text-gray-400 leading-relaxed">
-              I do all types of cuts. Skin fades, tapers, textured crops, curly hair, beard trims, you name it.
-              If you're not sure what you want, we'll figure it out together.
+              3 Years ago, I looked at the horrible $40 cuts I got from the big stores and thought to myself
+              &ldquo;This can&rsquo;t be that hard.&rdquo; Fast forward and now 900+ happy customers call Luke Cuts
+              their barber, because I actually listen.
             </p>
 
             <div className="p-4 rounded-xl border border-white/10 bg-white/3 text-sm text-gray-400 leading-relaxed">
@@ -134,64 +132,8 @@ export default function About() {
           </div>
         </motion.div>
 
-        <GallerySection />
 
       </div>
     </section>
-  )
-}
-
-interface Photo { id: string; url: string; alt: string }
-
-function GallerySection() {
-  const [photos, setPhotos] = useState<Photo[]>([])
-  const [loaded, setLoaded] = useState(false)
-
-  useEffect(() => {
-    fetch('/api/photos')
-      .then(r => r.json())
-      .then(d => { setPhotos(d.photos ?? []); setLoaded(true) })
-      .catch(() => setLoaded(true))
-  }, [])
-
-  const showPlaceholders = loaded && photos.length === 0
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-      <div className="text-center mb-8">
-        <h3 className="text-2xl font-black text-white">Work Gallery</h3>
-        <p className="text-gray-600 text-sm mt-1">
-          {showPlaceholders ? (
-            <>Photos coming soon. Follow{' '}
-              <a href="https://www.instagram.com/lukecutspsu" target="_blank" rel="noopener noreferrer"
-                className="text-gray-400 hover:text-white transition-colors">@luke.cuts.psu</a>{' '}
-              for the latest.</>
-          ) : (
-            <>Fresh cuts. Real results.</>
-          )}
-        </p>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4" id="gallery-grid">
-        {showPlaceholders
-          ? Array.from({ length: 6 }, (_, i) => (
-              <motion.div key={i}
-                initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }} transition={{ delay: i * 0.08 }}
-                className="aspect-square rounded-2xl bg-bg-card border border-dashed border-bg-border flex flex-col items-center justify-center gap-2 group hover:border-white/15 transition-colors">
-                <span className="text-2xl opacity-20 group-hover:opacity-30 transition-opacity">📷</span>
-                <span className="text-gray-700 text-xs">Photo {i + 1}</span>
-              </motion.div>
-            ))
-          : photos.map((photo, i) => (
-              <motion.div key={photo.id}
-                initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }} transition={{ delay: i * 0.08 }}
-                className="aspect-square rounded-2xl overflow-hidden bg-bg-card border border-bg-border">
-                <img src={photo.url} alt={photo.alt || 'Gallery photo'} className="w-full h-full object-cover" />
-              </motion.div>
-            ))
-        }
-      </div>
-    </motion.div>
   )
 }
